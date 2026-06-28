@@ -11,10 +11,10 @@ package matchkratosperiod
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/selector"
+	"github.com/go-kratos/kratos/v3/middleware/selector"
 	"github.com/yylego/kratos-auth/authkratos"
 	"github.com/yylego/neatjson/neatjsons"
 	"github.com/yylego/syncmap"
@@ -58,11 +58,10 @@ func (c *Config) WithNewSpanHook(fn authkratos.NewSpanHookFunc) *Config {
 	return c
 }
 
-func NewMatchFunc(cfg *Config, logger log.Logger) selector.MatchFunc {
-	slog := log.NewHelper(logger)
-	slog.Infof("match-kratos-period: new match func side=%v operations=%d match-first=%v period=%v", cfg.routeScope.Side, len(cfg.routeScope.OperationSet), cfg.matchFirst, cfg.n)
+func NewMatchFunc(cfg *Config, applog *slog.Logger) selector.MatchFunc {
+	applog.Info("match-kratos-period: new match func", "side", cfg.routeScope.Side, "operations", len(cfg.routeScope.OperationSet), "match-first", cfg.matchFirst, "period", cfg.n)
 	if cfg.debugMode {
-		slog.Debugf("match-kratos-period: new match func route-scope: %s", neatjsons.S(cfg.routeScope))
+		applog.Debug("match-kratos-period: new match func route-scope", "route-scope", neatjsons.S(cfg.routeScope))
 	}
 
 	type countBox struct {
@@ -75,14 +74,14 @@ func NewMatchFunc(cfg *Config, logger log.Logger) selector.MatchFunc {
 
 		if match := cfg.routeScope.Match(operation); !match {
 			if cfg.debugMode {
-				slog.Debugf("match-kratos-period: operation=%s side=%v match=%d next -> skip period", operation, cfg.routeScope.Side, authkratos.BooleanToNum(match))
+				applog.Debug("match-kratos-period: match next -> skip period", "operation", operation, "side", cfg.routeScope.Side, "match", authkratos.BooleanToNum(match))
 			}
 			return false
 		}
 		value, loaded := mp.LoadOrStore(operation, &countBox{&sync.Mutex{}, 0})
 		if !loaded && cfg.matchFirst {
 			if cfg.debugMode {
-				slog.Debugf("match-kratos-period: operation=%s side=%v match=%d next -> match first (count=0)", operation, cfg.routeScope.Side, authkratos.BooleanToNum(true))
+				applog.Debug("match-kratos-period: match next -> match first (count=0)", "operation", operation, "side", cfg.routeScope.Side, "match", authkratos.BooleanToNum(true))
 			}
 			return true
 		}
@@ -93,9 +92,9 @@ func NewMatchFunc(cfg *Config, logger log.Logger) selector.MatchFunc {
 		match := count == 0
 		if cfg.debugMode {
 			if match {
-				slog.Debugf("match-kratos-period: operation=%s side=%v match=%d next -> period matched (count=%d)", operation, cfg.routeScope.Side, authkratos.BooleanToNum(match), count)
+				applog.Debug("match-kratos-period: match next -> period matched", "operation", operation, "side", cfg.routeScope.Side, "match", authkratos.BooleanToNum(match), "count", count)
 			} else {
-				slog.Debugf("match-kratos-period: operation=%s side=%v match=%d skip -- period skipped (count=%d)", operation, cfg.routeScope.Side, authkratos.BooleanToNum(match), count)
+				applog.Debug("match-kratos-period: match skip -- period skipped", "operation", operation, "side", cfg.routeScope.Side, "match", authkratos.BooleanToNum(match), "count", count)
 			}
 		}
 		return match
