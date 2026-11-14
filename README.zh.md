@@ -1,9 +1,13 @@
+<!-- TEMPLATE (ZH) BEGIN: BADGES -->
+
 [![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/yylego/kratos-match-period/release.yml?branch=main&label=BUILD)](https://github.com/yylego/kratos-match-period/actions/workflows/release.yml?query=branch%3Amain)
 [![GoDoc](https://pkg.go.dev/badge/github.com/yylego/kratos-match-period)](https://pkg.go.dev/github.com/yylego/kratos-match-period)
 [![Coverage Status](https://img.shields.io/coveralls/github/yylego/kratos-match-period/main.svg)](https://coveralls.io/github/yylego/kratos-match-period?branch=main)
-[![Supported Go Versions](https://img.shields.io/badge/Go-1.25+-lightgrey.svg)](https://go.dev/)
+[![Supported Go Versions](https://img.shields.io/badge/Go-1.26%2B-lightgrey.svg)](https://go.dev/)
 [![GitHub Release](https://img.shields.io/github/release/yylego/kratos-match-period.svg)](https://github.com/yylego/kratos-match-period/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yylego/kratos-match-period)](https://goreportcard.com/report/github.com/yylego/kratos-match-period)
+
+<!-- TEMPLATE (ZH) CLOSE: BADGES -->
 
 # kratos-match-period
 
@@ -17,15 +21,14 @@
 
 [ENGLISH README](README.md)
 
-<!-- TEMPLATE (ZH) END: LANGUAGE NAVIGATION -->
+<!-- TEMPLATE (ZH) CLOSE: LANGUAGE NAVIGATION -->
 
 ## 核心特性
 
-🔢 **计数采样**: 每 N 个请求放行一个，其余跳过
-🏁 **首次匹配**: 可选首次请求直接放行
-🗺️ **路由范围**: INCLUDE/EXCLUDE 模式选择采样路由
-📡 **APM 追踪**: 通过 `authkratos.SpanHook` 进行可插拔的 span 钩子集成
-⚙️ **调试模式**: 提供详细的调试输出，含匹配计数追踪
+- 🔢 **计数采样**: 每 N 个请求匹配一个，每个路由各自计数
+- 🏁 **首个或末个**: 默认匹配每个周期的第一个请求，用 `WithMatchFirst(false)` 改成最后一个
+- 🗺️ **路由范围**: INCLUDE/EXCLUDE 模式选择采样路由
+- 🪵 **调试日志**: 每次匹配结果以 debug 级别写进日志，显示与否由日志级别决定
 
 ## 安装
 
@@ -36,14 +39,26 @@ go get github.com/yylego/kratos-match-period
 ## 使用方法
 
 ```go
-import "github.com/yylego/kratos-match-period/matchkratosperiod"
+import (
+    "log/slog"
 
-// 每 10 个请求放行 1 个（第10、20、30个...）
-cfg := matchkratosperiod.NewConfig(routeScope, 10).
-    WithMatchFirst(true).
-    WithDebugMode(true)
-matchFn := matchkratosperiod.NewMatchFunc(cfg, logger)
+    "github.com/go-kratos/kratos/v3/middleware"
+    "github.com/go-kratos/kratos/v3/middleware/selector"
+    "github.com/go-kratos/kratos/v3/transport/http"
+    "github.com/yylego/kratos-auth/authkratos"
+    "github.com/yylego/kratos-match-period/matchkratosperiod"
+)
+
+// newHTTPServer 让被包裹的中间件（比如请求日志）每 10 个 Search 请求只对 1 个生效：第 1、11、21 个……
+func newHTTPServer(wrapped middleware.Middleware, logger *slog.Logger) *http.Server {
+    routeScope := authkratos.NewInclude("/api.Article/Search")
+    cfg := matchkratosperiod.NewConfig(routeScope, 10) // 加上 WithMatchFirst(false) 就改成第 10、20、30 个……
+    matchFunc := matchkratosperiod.NewMatchFunc(cfg, logger)
+    return http.NewServer(http.Middleware(selector.Server(wrapped).Match(matchFunc).Build()))
+}
 ```
+
+范围外的路由不匹配，被包裹的中间件不会对它们生效。
 
 ---
 
@@ -105,10 +120,4 @@ MIT 许可证 - 详见 [LICENSE](LICENSE)。
 
 **祝你用这个包编程愉快！** 🎉🎉🎉
 
-<!-- TEMPLATE (ZH) END: STANDARD PROJECT FOOTER -->
-
----
-
-## GitHub 标星点赞
-
-[![标星点赞](https://starchart.cc/yylego/kratos-match-period.svg?variant=adaptive)](https://starchart.cc/yylego/kratos-match-period)
+<!-- TEMPLATE (ZH) CLOSE: STANDARD PROJECT FOOTER -->

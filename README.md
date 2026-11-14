@@ -1,9 +1,13 @@
+<!-- TEMPLATE (EN) BEGIN: BADGES -->
+
 [![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/yylego/kratos-match-period/release.yml?branch=main&label=BUILD)](https://github.com/yylego/kratos-match-period/actions/workflows/release.yml?query=branch%3Amain)
 [![GoDoc](https://pkg.go.dev/badge/github.com/yylego/kratos-match-period)](https://pkg.go.dev/github.com/yylego/kratos-match-period)
 [![Coverage Status](https://img.shields.io/coveralls/github/yylego/kratos-match-period/main.svg)](https://coveralls.io/github/yylego/kratos-match-period?branch=main)
-[![Supported Go Versions](https://img.shields.io/badge/Go-1.25+-lightgrey.svg)](https://go.dev/)
+[![Supported Go Versions](https://img.shields.io/badge/Go-1.26%2B-lightgrey.svg)](https://go.dev/)
 [![GitHub Release](https://img.shields.io/github/release/yylego/kratos-match-period.svg)](https://github.com/yylego/kratos-match-period/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yylego/kratos-match-period)](https://goreportcard.com/report/github.com/yylego/kratos-match-period)
+
+<!-- TEMPLATE (EN) CLOSE: BADGES -->
 
 # kratos-match-period
 
@@ -17,15 +21,14 @@ Count-based request sampling match function with configurable N-th pass-through.
 
 [中文说明](README.zh.md)
 
-<!-- TEMPLATE (EN) END: LANGUAGE NAVIGATION -->
+<!-- TEMPLATE (EN) CLOSE: LANGUAGE NAVIGATION -->
 
 ## Main Features
 
-🔢 **Count-Based Sampling**: Pass each N-th request, skip the rest
-🏁 **First-Match Option**: Pass the first request on each route (configurable)
-🗺️ **Route Scope**: INCLUDE/EXCLUDE mode to choose which routes get sampled
-📡 **APM Tracing**: Span hook integration via `authkratos.SpanHook`
-⚙️ **Debug Mode**: Verbose debug output with match count tracking
+- 🔢 **Count-Based Sampling**: Match one request in each period of N, counted on each route alone
+- 🏁 **First and Last**: Match the first request of each period (the default); `WithMatchFirst(false)` switches to the last one
+- 🗺️ **Route Scope**: INCLUDE/EXCLUDE mode to choose which routes get sampled
+- 🪵 **Debug Logs**: Each match outcome goes to the logger at debug level, and the logger level decides if it shows
 
 ## Installation
 
@@ -36,14 +39,26 @@ go get github.com/yylego/kratos-match-period
 ## Usage
 
 ```go
-import "github.com/yylego/kratos-match-period/matchkratosperiod"
+import (
+    "log/slog"
 
-// Pass 1 in 10 requests (10th, 20th, 30th...)
-cfg := matchkratosperiod.NewConfig(routeScope, 10).
-    WithMatchFirst(true).
-    WithDebugMode(true)
-matchFn := matchkratosperiod.NewMatchFunc(cfg, logger)
+    "github.com/go-kratos/kratos/v3/middleware"
+    "github.com/go-kratos/kratos/v3/middleware/selector"
+    "github.com/go-kratos/kratos/v3/transport/http"
+    "github.com/yylego/kratos-auth/authkratos"
+    "github.com/yylego/kratos-match-period/matchkratosperiod"
+)
+
+// newHTTPServer runs the wrapped middleware (such as request logging) on 1 in 10 of the Search requests: the 1st, 11th, 21st...
+func newHTTPServer(wrapped middleware.Middleware, logger *slog.Logger) *http.Server {
+    routeScope := authkratos.NewInclude("/api.Article/Search")
+    cfg := matchkratosperiod.NewConfig(routeScope, 10) // WithMatchFirst(false) picks the 10th, 20th, 30th... in place
+    matchFunc := matchkratosperiod.NewMatchFunc(cfg, logger)
+    return http.NewServer(http.Middleware(selector.Server(wrapped).Match(matchFunc).Build()))
+}
 ```
+
+Routes outside the scope do not match, so the wrapped middleware skips them.
 
 ---
 
@@ -105,10 +120,4 @@ Welcome to contribute to this project via submitting merge requests and reportin
 
 **Have Fun Coding with this package!** 🎉🎉🎉
 
-<!-- TEMPLATE (EN) END: STANDARD PROJECT FOOTER -->
-
----
-
-## GitHub Stars
-
-[![Stargazers](https://starchart.cc/yylego/kratos-match-period.svg?variant=adaptive)](https://starchart.cc/yylego/kratos-match-period)
+<!-- TEMPLATE (EN) CLOSE: STANDARD PROJECT FOOTER -->
