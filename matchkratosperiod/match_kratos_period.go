@@ -67,7 +67,7 @@ func NewMatchFunc(cfg *Config, applog *slog.Logger) selector.MatchFunc {
 	routeCounts := syncmap.New[authkratos.Operation, *atomic.Uint64]()
 	return func(ctx context.Context, operation string) bool {
 		if !cfg.routeScope.Match(operation) {
-			applog.Debug("match-kratos-period: match skip -- outside the route scope", "operation", operation, "side", cfg.routeScope.Side)
+			applog.Debug("match-kratos-period: skipped, operation outside the route scope", "operation", operation, "side", cfg.routeScope.Side)
 			return false
 		}
 		routeCount, _ := routeCounts.LoadOrStore(operation, &atomic.Uint64{})
